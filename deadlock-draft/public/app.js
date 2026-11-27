@@ -38,8 +38,11 @@ const PILLOW = `<svg class="pillow" viewBox="0 0 260 210" role="img" aria-label=
  <text class="z1" x="214" y="40" font-size="20">z</text><text class="z2" x="232" y="20" font-size="26">Z</text>
 </g>
 </svg>`;
-const memeHTML = () => (typeof window.MEME_SRC === 'string' && window.MEME_SRC.startsWith('data:image/')
-  ? `<figure class="meme"><span class="mframe"><img src="${window.MEME_SRC}" alt="Мем: рыба просит высушить её и разбить об стол"></span><span class="spk k1">✦</span><span class="spk k2">✦</span><span class="spk k3">✧</span></figure>`
+const MEMES = (Array.isArray(window.MEMES) ? window.MEMES : [window.MEME_SRC]).filter(u => typeof u === 'string' && /^data:image\/(webp|jpeg|png|gif);base64,/.test(u));
+let memeIdx = MEMES.length ? Math.floor(Math.random() * MEMES.length) : 0;
+const memeFor = c => { let h = 0; for (const ch of String(c)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return MEMES.length ? h % MEMES.length : 0; };
+const memeHTML = (i = memeIdx, cls = '') => (MEMES.length
+  ? `<figure class="meme ${cls}" data-a="nextmeme" title="Нажмите, чтобы сменить мем"><span class="mframe"><img src="${MEMES[i % MEMES.length]}" alt="Мем"></span><span class="spk k1">✦</span><span class="spk k2">✦</span><span class="spk k3">✧</span></figure>`
   : PILLOW);
 let me = { uid: '', nick: '', avatar: '', acc: null, steam: false };
 let H = [], HM = {}, HID = {};
@@ -328,7 +331,7 @@ function lobbyHTML() {
   };
   const edit = isHost() || isCap('A') || isCap('B');
   const nx = String(room.next || '');
-  return `<div class="lob"><div class="lobhead"><h2>Лобби готово</h2><span class="mu">${esc(tname('A'))} против ${esc(tname('B'))} · комната #${esc(code)}</span></div>
+  return `<div class="lob"><div class="lobhead${MEMES.length ? ' wm' : ''}"><div class="lht"><h2>Лобби готово</h2><span class="mu">${esc(tname('A'))} против ${esc(tname('B'))} · комната #${esc(code)}</span><span class="mu sm">${MEMES.length ? 'Мем этой игры ✦' : ''}</span></div>${MEMES.length ? memeHTML(memeFor(code), 'lm') : ''}</div>
    ${/^[A-Z0-9]{4,6}$/.test(nx) ? `<div class="note"><span>Хост создал реванш: комната #${esc(nx)}</span><a class="btn pri small" href="/r/${esc(nx)}" data-link>Перейти</a></div>` : ''}
    <div class="rosters">${ros('A')}${ros('B')}</div>
    <div class="lset"><label>Код лобби из игры<input id="lcode" maxlength="24" placeholder="${edit ? 'Вставьте код приватного лобби' : 'Хост ещё не вставил код'}" value="${esc(L.code)}" ${edit ? '' : 'readonly'}></label>
@@ -501,6 +504,7 @@ document.addEventListener('click', async e => {
   else if (a === 'ready') act({ type: 'ready', team: t });
   else if (a === 'copylobby') copy(summary(), 'Состав скопирован');
   else if (a === 'rematch') { b.disabled = true; const j = await api('/api/rooms/' + code + '/rematch', {}); b.disabled = false; if (j.error) toast(j.error); else go('/r/' + j.code); }
+  else if (a === 'nextmeme') { if (view !== 'home' || MEMES.length < 2) return; memeIdx = (memeIdx + 1) % MEMES.length; const img = b.querySelector('img'); if (img) img.src = MEMES[memeIdx]; }
   else if (a === 'mclose') $('modal').hidden = true;
 });
 document.addEventListener('dblclick', e => { const tile = e.target.closest('.tile'); if (tile && !tile.disabled && canAct()) { sel = tile.dataset.h; lock(sel); } });
