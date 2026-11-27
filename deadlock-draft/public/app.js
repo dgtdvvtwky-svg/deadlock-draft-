@@ -255,7 +255,7 @@ function turnHTML() {
   if (room.status === 'gather') {
     const pl = poolL(), rd = pl.filter(p => p.ready).length, ok = capOf('A') && capOf('B'), F = pseq()[0] || 'A';
     return `<div class="wh"><span class="big">Сбор игроков</span><span class="mu">Готовы ${rd} из ${pl.length}. ${ok ? 'Оба капитана на местах.' : 'Нужны два капитана: займите места слева и справа.'} Первым игрока выбирает ${esc(tname(F))}, а драфт героев первой начинает другая команда.</span></div>
-     ${isHost() ? `<div class="btns"><button data-a="coin">Монетка</button><button class="pri" data-a="pstart" ${ok ? '' : 'disabled'}>Начать выбор игроков</button></div>` : '<span class="mu sm">Выбор игроков запустит хост.</span>'}`;
+     ${isHost() ? `<div class="btns"><button data-a="coin">Монетка</button><button class="pri" data-a="pstart" ${ok ? '' : 'disabled'}>Начать выбор игроков</button><button class="pri" data-a="start">Сразу драфт героев</button></div>` : '<span class="mu sm">Выбор игроков запустит хост.</span>'}`;
   }
   if (room.status === 'pdraft') {
     const t = pcur(); if (!t) return '';
