@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: deadlock-draft
+    runtime: node
+    plan: free
+    buildCommand: echo "без зависимостей"
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: BASE_URL
+        sync: false
+      - key: STEAM_API_KEY
+        sync: false
