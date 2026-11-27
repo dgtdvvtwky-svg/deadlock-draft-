@@ -368,7 +368,7 @@ function act(R, u, b) {
       d.cap[t] = null; return null;
     case 'start':
       if (!isHost) return 'Драфт запускает хост';
-      if (d.status !== 'wait') return 'Драфт уже идёт';
+      if (d.status !== 'wait' && d.status !== 'gather') return 'Драфт уже идёт';
       d.status = 'draft'; d.turnAt = Date.now(); return null;
     case 'coin':
       if (!isHost || d.status !== (pdOn(d) ? 'gather' : 'wait')) return 'Монетку бросает хост до старта';
