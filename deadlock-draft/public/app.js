@@ -12,13 +12,13 @@ const PRE = {
   fast: ['Без банов', 'pA pB pB pA pA pB pB pA pA pB pB pA'],
 };
 const REG = { eu: 'Европа', ru: 'Россия / СНГ', na: 'Северная Америка', sa: 'Южная Америка', as: 'Азия', oc: 'Океания' };
-const ST = { wait: 'Ожидание', draft: 'Идёт драфт', done: 'Лобби' };
+const ST = { gather: 'Сбор игроков', pdraft: 'Выбор игроков', wait: 'Ожидание драфта героев', draft: 'Драфт героев', done: 'Лобби' };
 const STEAM_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-9.96 9.04l5.36 2.21a2.83 2.83 0 0 1 1.6-.49h.15l2.38-3.45v-.05a3.77 3.77 0 1 1 3.77 3.77h-.09l-3.4 2.42v.13a2.83 2.83 0 0 1-5.6.57L2.4 14.6A10 10 0 1 0 12 2Zm-4.7 15.2-1.23-.51a2.13 2.13 0 1 0 1.17-2.93l1.27.52a1.57 1.57 0 1 1-1.2 2.92Zm9.6-7.27a2.51 2.51 0 1 0-2.51 2.51 2.51 2.51 0 0 0 2.5-2.51Zm-4.4 0a1.89 1.89 0 1 1 1.89 1.89 1.89 1.89 0 0 1-1.9-1.89Z"/></svg>';
 
 let me = { uid: '', nick: '', avatar: '', acc: null, steam: false };
 let H = [], HM = {}, HID = {};
 let view = 'home', code = null, room = null, es = null, offset = 0, sel = null, roleF = 'all', q = '';
-let listT = null, delArm = 0, pending = false, lastStepSeen = -1;
+let listT = null, delArm = 0, pending = false, lastStepSeen = -1, lastPSeen = -1;
 let hSeq = PRE.tour[1].split(' '), hPre = 'tour';
 const stats = {};
 
@@ -71,7 +71,7 @@ function go(path) { if (location.pathname !== path) history.pushState(null, '', 
 function route() {
   const m = /^\/r\/([A-Za-z0-9]{4,6})\/?$/.exec(location.pathname);
   if (es) { es.close(); es = null; }
-  clearInterval(listT); room = null; sel = null; delArm = 0; pending = false; lastStepSeen = -1;
+  clearInterval(listT); room = null; sel = null; delArm = 0; pending = false; lastStepSeen = -1; lastPSeen = -1;
   if (m) { view = 'room'; code = m[1].toUpperCase(); shell(); connect(); }
   else { view = 'home'; code = null; homeView(); loadList(); listT = setInterval(loadList, 8000); }
   renderHeader();
@@ -95,6 +95,8 @@ function homeView() {
     <div class="seqbox"><div class="track" id="seqv"></div>
      <div class="seqed"><button class="small" data-a="sq" data-v="bA">+ Бан A</button><button class="small" data-a="sq" data-v="bB">+ Бан B</button><button class="small" data-a="sq" data-v="pA">+ Пик A</button><button class="small" data-a="sq" data-v="pB">+ Пик B</button><button class="small ghost" data-a="sqdel">Убрать последний</button><button class="small ghost" data-a="sqclr">Очистить</button></div>
      <span class="mu sm" id="seqi"></span></div>
+    <label class="chk"><input type="checkbox" id="pdon" checked> Сначала капитаны выбирают игроков из лобби</label>
+    <label>Порядок выбора игроков<select id="pord"><option value="snake">Змейка: 1-2-2-2-2-1</option><option value="alt">По очереди: 1-1-1-1</option></select></label>
     <label>Время на ход<select id="tmr"><option value="0">Без таймера</option><option value="20">20 секунд</option><option value="30" selected>30 секунд</option><option value="45">45 секунд</option><option value="60">60 секунд</option><option value="90">90 секунд</option></select></label>
     <div class="btns"><button class="pri" data-a="create">Создать комнату</button></div>
    </section>
@@ -102,7 +104,7 @@ function homeView() {
     <form id="joinf"><input id="jcode" maxlength="6" placeholder="Например, K7QM" autocomplete="off" aria-label="Код комнаты"><button class="pri">Войти</button></form>
     <h2>Комнаты</h2><div class="rlist" id="rlist"><span class="mu sm">Загрузка…</span></div>
    </section></div>
-  <p class="how"><b>Как это работает.</b> Хост создаёт комнату и отправляет ссылку. Капитаны занимают места за Amber и Sapphire, хост запускает драфт. Ходы идут по очереди с таймером, сервер следит за очередью и сам доигрывает ход, если время вышло: бан пропускается, пик выбирается случайно. После последнего пика открывается лобби: игроки занимают своих героев кнопкой «Это я», видят ранг и статистику друг друга, хост вставляет код приватного лобби из игры, и состав копируется в Discord.</p>`;
+  <p class="how"><b>Как это работает.</b> Хост создаёт комнату и отправляет ссылку. Все игроки заходят, записываются и отмечают готовность. Капитаны занимают места за Amber и Sapphire и по очереди набирают готовых игроков из общей таблицы, где видны ранг и статистика каждого. Потом идёт драфт героев. Ходы идут по очереди с таймером, сервер следит за очередью и сам доигрывает ход, если время вышло: бан пропускается, пик выбирается случайно. После последнего пика открывается лобби: игроки занимают своих героев кнопкой «Это я», видят ранг и статистику друг друга, хост вставляет код приватного лобби из игры, и состав копируется в Discord.</p>`;
   $('fmt').value = hPre; seqPaint();
 }
 function seqPaint() { if (!$('seqv')) return; $('seqv').innerHTML = hSeq.length ? chips(hSeq) : '<span class="mu sm">Добавьте ходы кнопками ниже</span>'; $('seqi').textContent = seqInfo(hSeq); }
@@ -126,6 +128,22 @@ const isHost = () => !!room && room.host === me.uid;
 const isCap = t => { const c = capOf(t); return !!c && c.uid === me.uid; };
 const lob = () => (room && room.lobby) || { slots: {}, ready: {} };
 function canAct() { if (!room || room.status !== 'draft') return false; const c = curStep(); if (!c) return false; const cp = capOf(c[1]); return cp ? cp.uid === me.uid : isHost(); }
+const pdOn = () => !!(room && room.pd && room.pd.on);
+const poolL = () => (room && Array.isArray(room.pool) ? room.pool : []);
+const ppicks = () => (room && room.pd && Array.isArray(room.pd.picks) ? room.pd.picks : []);
+function pseq() {
+  if (!room || !room.pd) return [];
+  const f = eseq()[0], F = f && f[1] === 'A' ? 'B' : 'A', O = F === 'A' ? 'B' : 'A', out = [];
+  for (let i = 0; i < 2 * ((room.pd.size || 6) - 1); i++) out.push(room.pd.order === 'alt' ? (i % 2 ? O : F) : (i % 4 === 0 || i % 4 === 3 ? F : O));
+  return out;
+}
+const teamUids = t => [capOf(t) && capOf(t).uid, ...ppicks().filter(p => p.t === t).map(p => p.uid)].filter(Boolean);
+const teamOf = uid => ['A', 'B'].find(t => teamUids(t).includes(uid)) || null;
+const pcur = () => (room && room.status === 'pdraft' ? pseq()[ppicks().length] : null);
+function canPick() { const t = pcur(); if (!t) return false; const cp = capOf(t); return cp ? cp.uid === me.uid : isHost(); }
+const pcard = uid => poolL().find(p => p.uid === uid) || ['A', 'B'].map(capOf).find(c => c && c.uid === uid) || null;
+const myP = () => poolL().find(p => p.uid === me.uid) || null;
+const pdPhase = () => room && (room.status === 'gather' || room.status === 'pdraft');
 const act = async b => { const j = await api('/api/rooms/' + code + '/act', b); if (j.error) toast(j.error); return j; };
 
 function shell() {
@@ -138,9 +156,12 @@ function shell() {
     <div id="draftC" class="mid">
      <div class="turn" id="turn"></div>
      <div class="track" id="track"></div>
-     <div class="filters"><input id="q" type="search" placeholder="Поиск героя" aria-label="Поиск героя"><div class="chips" id="rch"></div></div>
-     <div class="grid" id="grid"></div>
-     <span class="mu sm" id="gridnote"></span>
+     <div id="heroC" class="mid">
+      <div class="filters"><input id="q" type="search" placeholder="Поиск героя" aria-label="Поиск героя"><div class="chips" id="rch"></div></div>
+      <div class="grid" id="grid"></div>
+      <span class="mu sm" id="gridnote"></span>
+     </div>
+     <div id="pdC" class="mid" hidden></div>
      <div class="actbar" id="act"></div>
     </div>
     <div id="lobbyC" hidden></div>
@@ -180,22 +201,42 @@ function seatHTML(t) {
   return `<span class="mu">Место капитана свободно</span>${room.status !== 'done' ? `<button class="small" data-a="claim" data-t="${t}">Стать капитаном</button>` : ''}`;
 }
 function teamHTML(t) {
-  const s = eseq(), A = acts(), cur = curStep(), on = room.status === 'draft' && cur && cur[1] === t;
+  const s = eseq(), A = acts(), cur = curStep(), on = (room.status === 'draft' && cur && cur[1] === t) || pcur() === t;
   const nb = s.filter(x => x === 'b' + t).length, np = s.filter(x => x === 'p' + t).length;
   const mb = A.filter(a => a.t === t && a.s === 'b'), mp = A.filter(a => a.t === t && a.s === 'p');
   $('t' + t).classList.toggle('on', !!on);
   const bans = Array.from({ length: nb }, (_, i) => { const a = mb[i]; if (a) return `<span class="bs f" title="${a.h ? esc(HM[a.h].name) : 'Бан пропущен'}">${a.h ? em(HM[a.h]) : '–'}</span>`; return `<span class="bs${on && cur[0] === 'b' && i === mb.length ? ' nx' : ''}">Б${i + 1}</span>`; }).join('');
   const picks = Array.from({ length: np }, (_, i) => { const a = mp[i]; if (a && a.h) { const h = HM[a.h]; return `<div class="ps f">${em(h)}<b>${esc(h.name)}</b></div>`; } return `<div class="ps${on && cur[0] === 'p' && i === mp.length ? ' nx' : ''}"><span class="e0"></span><span class="mu sm">Пик ${i + 1}</span></div>`; }).join('');
+  let roster = '';
+  if (pdOn()) {
+    const mem = teamUids(t).map(pcard).filter(Boolean), size = (room.pd && room.pd.size) || 6, pc = pcur();
+    roster = `<div class="picks"><div class="lbl">Состав ${mem.length}/${size}</div>${Array.from({ length: size }, (_, i) => {
+      const p = mem[i];
+      if (p) { if (p.acc) loadStats(p.acc); return `<div class="ps f mem">${avatar(p, 's') || '<span class="av s"></span>'}<span class="mn"><b>${esc(p.nick)}</b>${i === 0 && capOf(t) ? ' <span class="mu sm">капитан</span>' : ''}${rankHTML(p.acc)}</span></div>`; }
+      return `<div class="ps mem${pc === t && i === mem.length ? ' nx' : ''}"><span class="av s"></span><span class="mu sm">Игрок ${i + 1}</span></div>`;
+    }).join('')}</div>`;
+  }
   return `<div><div class="tn">${esc(tname(t))}</div><div class="side">${SIDE[t]} · ${t === 'A' ? 'Amber' : 'Sapphire'}</div></div>
    <div class="seat">${seatHTML(t)}</div>
-   ${nb ? `<div><div class="lbl">Баны</div><div class="bans">${bans}</div></div>` : ''}
-   <div class="picks"><div class="lbl">Пики</div>${picks}</div>`;
+   ${roster}
+   ${pdPhase() ? '' : `${nb ? `<div><div class="lbl">Баны</div><div class="bans">${bans}</div></div>` : ''}
+   <div class="picks"><div class="lbl">Пики</div>${picks}</div>`}`;
 }
 function turnHTML() {
+  if (room.status === 'gather') {
+    const pl = poolL(), rd = pl.filter(p => p.ready).length, ok = capOf('A') && capOf('B'), F = pseq()[0] || 'A';
+    return `<div class="wh"><span class="big">Сбор игроков</span><span class="mu">Готовы ${rd} из ${pl.length}. ${ok ? 'Оба капитана на местах.' : 'Нужны два капитана: займите места слева и справа.'} Первым игрока выбирает ${esc(tname(F))}, а драфт героев первой начинает другая команда.</span></div>
+     ${isHost() ? `<div class="btns"><button data-a="coin">Монетка</button><button class="pri" data-a="pstart" ${ok ? '' : 'disabled'}>Начать выбор игроков</button></div>` : '<span class="mu sm">Выбор игроков запустит хост.</span>'}`;
+  }
+  if (room.status === 'pdraft') {
+    const t = pcur(); if (!t) return '';
+    return `<div class="wh"><span class="mu sm">Выбор ${ppicks().length + 1} из ${pseq().length}${canPick() ? ' · ваш выбор' : ''}</span><span class="big" style="color:${tc(t)}">${esc(tname(t))} выбирает игрока</span></div>
+     ${room.timer ? `<div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="var(--ln)" stroke-width="5"/><circle id="tring" cx="32" cy="32" r="27" fill="none" stroke="${tc(t)}" stroke-width="5" stroke-linecap="round" stroke-dasharray="169.6"/></svg><span id="tsec"></span></div>` : ''}`;
+  }
   if (room.status === 'wait') {
     const ok = capOf('A') && capOf('B'), first = eseq()[0];
-    return `<div class="wh"><span class="big">Ожидание старта</span><span class="mu">${ok ? 'Оба капитана на местах.' : 'Капитаны занимают места слева и справа.'} Первыми ходят ${esc(tname(first ? first[1] : 'A'))}. Пока место капитана пустое, за эту команду ходит хост.</span></div>
-     ${isHost() ? '<div class="btns"><button data-a="coin">Монетка: кто первый</button><button class="pri" data-a="start">Начать драфт</button></div>' : `<span class="mu sm">Драфт запустит хост: ${esc(room.hostNick)}.</span>`}`;
+    return `<div class="wh"><span class="big">${pdOn() ? 'Составы собраны' : 'Ожидание старта'}</span><span class="mu">${pdOn() ? 'Следующий этап: драфт героев.' : ''} ${ok ? 'Оба капитана на местах.' : 'Капитаны занимают места слева и справа.'} Первыми ходят ${esc(tname(first ? first[1] : 'A'))}. Пока место капитана пустое, за эту команду ходит хост.</span></div>
+     ${isHost() ? `<div class="btns">${pdOn() ? '' : '<button data-a="coin">Монетка: кто первый</button>'}<button class="pri" data-a="start">Начать драфт героев</button></div>` : `<span class="mu sm">Драфт запустит хост: ${esc(room.hostNick)}.</span>`}`;
   }
   const c = curStep(); if (!c) return '';
   const t = c[1], n = acts().length + 1;
@@ -217,6 +258,14 @@ function actHTML() {
   const c = curStep();
   const undo = isHost() && acts().length ? '<button class="ghost" data-a="undo">Отменить ход</button>' : '';
   const del = isHost() ? `<button class="ghost small" data-a="del">${delArm > Date.now() ? 'Точно удалить?' : 'Удалить комнату'}</button>` : '';
+  if (pdPhase()) {
+    const pu = (isHost() && ppicks().length) ? '<button class="ghost" data-a="undo">Отменить выбор</button>' : '';
+    const pe = isHost() ? `<button class="ghost small" data-a="pend">${room.status === 'gather' ? 'Без выбора игроков' : 'Закончить выбор'}</button>` : '';
+    const t = pcur(), cp = t && capOf(t);
+    const msg = room.status === 'gather' ? 'Ждём готовности игроков.' : canPick() ? 'Нажмите «Взять» у игрока в таблице.' : `Ждём выбор: ${esc(tname(t))}${cp ? ' (' + esc(cp.nick) + ')' : ''}`;
+    return `<span class="pv mu">${msg}</span>${pu}${pe}${del}`;
+  }
+  if (room.status === 'wait' && pdOn() && !acts().length && isHost() && ppicks().length) return `<span class="pv mu">Драфт героев ещё не начался.</span><button class="ghost" data-a="undo">Вернуть последний выбор игрока</button>${del}`;
   if (room.status !== 'draft' || !c) return `<span class="pv mu">${room.status === 'wait' ? 'Драфт ещё не начался.' : ''}</span>${del}`;
   if (!canAct()) { const cp = capOf(c[1]); return `<span class="pv mu">Ждём ход: ${esc(tname(c[1]))}${cp ? ' (' + esc(cp.nick) + ')' : ' (за команду ходит хост)'}</span>${undo}${del}`; }
   const h = sel && HM[sel];
@@ -235,7 +284,8 @@ function slotHTML(t, i, a) {
       <span class="x">${(s.uid && s.uid === me.uid) || manage ? `<button class="small ghost" data-a="slot" data-k="${k}" data-m="clear">Убрать</button>` : ''}</span>
       ${s.acc ? `<span class="stat" style="flex-basis:100%">${hs ? `На ${esc(h.name)}: ${hs.m} игр, ${pct(hs.w, hs.m)}% побед, KDA ${((hs.k + hs.a) / Math.max(1, hs.d)).toFixed(1)}` : d ? `На ${esc(h.name)} ещё нет игр в статистике` : 'Загружаем статистику…'}</span>` : ''}`;
   } else {
-    pl = `<span class="mu">Свободно</span><span class="x"><button class="small" data-a="slot" data-k="${k}" data-m="me">Это я</button>${manage ? `<input data-slotname="${k}" maxlength="24" placeholder="Вписать ник" aria-label="Вписать игрока за ${esc(h.name)}">` : ''}</span>`;
+    const mayMe = !pdOn() || teamOf(me.uid) === t;
+    pl = `<span class="mu">Свободно</span><span class="x">${mayMe ? `<button class="small" data-a="slot" data-k="${k}" data-m="me">Это я</button>` : ''}${manage ? `<input data-slotname="${k}" maxlength="24" placeholder="Вписать ник" aria-label="Вписать игрока за ${esc(h.name)}">` : ''}</span>`;
   }
   return `<div class="rw">${em(h)}<div><div class="hn">${esc(h.name)}</div><div class="pl">${pl}</div></div></div>`;
 }
@@ -246,6 +296,7 @@ function lobbyHTML() {
     const on = !!(L.ready && L.ready[t]), can = isHost() || isCap(t);
     return `<div class="ros ${t}"><h3>${esc(tname(t))}</h3><span class="side">${SIDE[t]} · ${t === 'A' ? 'Amber' : 'Sapphire'}</span>
      ${P.map((a, i) => slotHTML(t, i, a)).join('')}
+     ${pdOn() ? (() => { const used = new Set(Object.values(L.slots || {}).map(x => x && x.uid)); const rest = teamUids(t).filter(u => !used.has(u)).map(pcard).filter(Boolean); return rest.length ? `<span class="sm">Ещё не выбрали героя: ${rest.map(p => esc(p.nick)).join(', ')}</span>` : ''; })() : ''}
      <span class="mu sm">Баны: ${Bn.length ? Bn.map(a => (a.h ? esc(HM[a.h].name) : 'пропуск')).join(', ') : 'нет'}</span>
      <button class="rdy${on ? ' on' : ''}" data-a="ready" data-t="${t}" ${can ? '' : 'disabled'}>${on ? 'Команда готова' : 'Отметить готовность'}</button></div>`;
   };
@@ -259,6 +310,48 @@ function lobbyHTML() {
     <label>Заметка<input id="lnote" maxlength="80" placeholder="Например: старт в 21:00, войс в Discord" value="${esc(L.note)}" ${edit ? '' : 'readonly'}></label></div>
    <span class="mu sm">Само лобби в Deadlock создаёт хост в игре: у игры нет открытого API для этого. Код, вставленный сюда, сразу видят все в комнате.</span>
    <div class="btns"><button class="pri" data-a="copylobby">Скопировать для Discord</button>${isHost() ? '<button data-a="rematch">Реванш (первой ходит другая команда)</button><button class="ghost" data-a="undo">Отменить последний пик</button>' : ''}<a class="btn ghost" href="/" data-link>Новый драфт</a></div></div>`;
+}
+
+function pchips() {
+  const P = ppicks(), cur = room.status === 'pdraft' ? P.length : -1;
+  return pseq().map((t, i) => {
+    const p = P[i] && pcard(P[i].uid);
+    const lab = p ? String(p.nick).slice(0, 2).toUpperCase() : 'И';
+    return `<span class="ch p ${t}${P[i] ? ' d' : ''}${i === cur ? ' c' : ''}" title="${p ? esc(p.nick) : 'Выбор игрока'} · ${esc(tname(t))}">${esc(lab)}</span>`;
+  }).join('');
+}
+function topHeroes(acc) {
+  const d = sd(acc); if (!d || !d.heroes) return '';
+  return Object.entries(d.heroes).sort((a, b) => b[1].m - a[1].m).slice(0, 3).map(([id, s]) => { const h = H.find(x => x.heroId === Number(id)); return h ? `<span title="${esc(h.name)}: ${s.m} игр, ${pct(s.w, s.m)}%">${em(h, 'xs')}</span>` : ''; }).join('');
+}
+function poolHTML() {
+  const pl = poolL(), mine = myP(), able = canPick(), host = isHost();
+  const tier = p => { const d = sd(p.acc); return d && d.rank ? d.rank.tier * 10 + d.rank.sub : 0; };
+  const grp = p => (teamOf(p.uid) ? 2 : p.ready ? 0 : 1);
+  const list = pl.slice().sort((a, b) => grp(a) - grp(b) || tier(b) - tier(a) || (a.at || 0) - (b.at || 0));
+  const rd = pl.filter(p => p.ready).length;
+  const myTeam = teamOf(me.uid);
+  const ctl = !mine
+    ? '<button class="pri" data-a="pjoin">Записаться и отметить «Готов»</button>'
+    : myTeam ? `<span class="mu">Вы в команде ${esc(tname(myTeam))}</span>`
+    : `${mine.ready ? '<button class="rdy on" data-a="pready" data-v="0">Готов ✓</button>' : '<button class="pri" data-a="pready" data-v="1">Я готов</button>'}<button class="ghost small" data-a="pleave">Выйти из списка</button>`;
+  const rows = list.map(p => {
+    if (p.acc) loadStats(p.acc);
+    const d = sd(p.acc), t = teamOf(p.uid);
+    const status = t ? `<span class="tag ${t}">${esc(tname(t))}</span>` : p.ready ? '<span class="okc">Готов</span>' : '<span class="mu">Не готов</span>';
+    const action = !t && able && p.ready ? `<button class="small pri" data-a="ppick" data-u="${esc(p.uid)}">Взять</button>` : !t && host && p.uid !== me.uid ? `<button class="small ghost" data-a="kick" data-u="${esc(p.uid)}">Убрать</button>` : '';
+    return `<tr class="${t ? 'in' : p.ready ? '' : 'nr'}">
+      <td><span class="pn">${avatar(p, 's') || '<span class="av s"></span>'}<span><b>${esc(p.nick)}</b>${p.uid === me.uid ? ' <span class="mu sm">(вы)</span>' : ''}<br><span class="sm ${p.online ? 'okc' : 'mu'}">${p.online ? 'в сети' : 'не в сети'}</span>${d && d.statlocker ? ` · <a class="sm" href="${esc(safeUrl(d.statlocker))}" target="_blank" rel="noopener">StatLocker</a>` : ''}</span></span></td>
+      <td>${p.acc ? rankHTML(p.acc) || (d ? '<span class="mu sm">нет ранга</span>' : '<span class="mu sm">…</span>') : '<span class="mu sm">гость</span>'}</td>
+      <td class="num" data-l="Матчи">${d && d.matches ? d.matches : '—'}</td>
+      <td class="num" data-l="Победы">${d && d.matches ? pct(d.wins, d.matches) + '%' : '—'}</td>
+      <td><span class="tops">${topHeroes(p.acc)}</span></td>
+      <td>${status}</td>
+      <td>${action}</td></tr>`;
+  }).join('');
+  return `<div class="card pool"><div class="poolhead"><h2>Игроки в лобби: ${pl.length} · готовы: ${rd}</h2><div class="btns">${ctl}</div></div>
+    ${pl.length ? `<div class="scroll"><table class="ptable stack"><thead><tr><th>Игрок</th><th>Ранг</th><th class="num">Матчи</th><th class="num">Победы</th><th>Любимые герои</th><th>Статус</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="mu">Пока никто не записался. Отправьте друзьям ссылку на комнату.</p>'}
+    <span class="mu sm">Ранг и статистика берутся из Deadlock API для игроков, вошедших через Steam. Капитаны берут только готовых игроков.</span></div>`;
 }
 function render() {
   if (view !== 'room') return;
@@ -275,6 +368,18 @@ function render() {
   const done = room.status === 'done';
   $('draftC').hidden = done; $('lobbyC').hidden = !done;
   if (done) { $('lobbyC').innerHTML = lobbyHTML(); return; }
+  const pdp = pdPhase();
+  $('heroC').hidden = pdp; $('pdC').hidden = !pdp;
+  if (pdp) {
+    const ps = ppicks().length;
+    if (ps !== lastPSeen) { if (lastPSeen >= 0 && room.lastAutoP === ps - 1 && ps > lastPSeen) toast('Время вышло: игрок выбран случайно'); lastPSeen = ps; }
+    $('turn').innerHTML = turnHTML();
+    $('track').innerHTML = pchips();
+    $('pdC').innerHTML = poolHTML();
+    $('act').innerHTML = actHTML();
+    paintTimer();
+    return;
+  }
   const step = acts().length;
   if (step !== lastStepSeen) { if (sel && taken().has(sel)) sel = null; if (lastStepSeen >= 0 && room.lastAuto === step - 1) toast('Время вышло: ход сделан автоматически'); lastStepSeen = step; }
   if (!canAct()) sel = null;
@@ -286,7 +391,7 @@ function render() {
   paintTimer();
 }
 function paintTimer() {
-  if (!room || room.status !== 'draft' || !room.timer) return;
+  if (!room || (room.status !== 'draft' && room.status !== 'pdraft') || !room.timer) return;
   const tot = room.timer * 1000, left = Math.max(0, (Number(room.turnAt) || 0) + tot - (Date.now() + offset));
   const r = $('tring'), s = $('tsec');
   if (r) r.style.strokeDashoffset = String(169.6 * (1 - left / tot));
@@ -299,6 +404,7 @@ function summary() {
   for (const t of ['A', 'B']) {
     out.push(`${tname(t)} (${SIDE[t]}):`);
     A.filter(a => a.t === t && a.s === 'p' && a.h).forEach((a, i) => { const s = L.slots && L.slots[t + i]; const d = s && sd(s.acc); out.push(`  ${HM[a.h].name}: ${s ? s.nick : '—'}${d && d.rank ? ' (' + d.rank.name + ')' : ''}`); });
+    if (pdOn()) { const used = new Set(Object.values(L.slots || {}).map(x => x && x.uid)); const rest = teamUids(t).filter(u => !used.has(u)).map(pcard).filter(Boolean); if (rest.length) out.push(`  Без героя: ${rest.map(p => p.nick).join(', ')}`); }
     const b = A.filter(a => a.t === t && a.s === 'b'); if (b.length) out.push(`  Баны: ${b.map(a => (a.h ? HM[a.h].name : 'пропуск')).join(', ')}`);
     out.push('');
   }
@@ -340,7 +446,7 @@ document.addEventListener('click', async e => {
     if (!(await needNick())) return;
     if (!hSeq.some(x => x[0] === 'p')) { toast('В порядке ходов нужен хотя бы один пик'); return; }
     b.disabled = true;
-    const j = await api('/api/rooms', { names: { A: $('nA').value, B: $('nB').value }, seq: hSeq, timer: Number($('tmr').value) });
+    const j = await api('/api/rooms', { names: { A: $('nA').value, B: $('nB').value }, seq: hSeq, timer: Number($('tmr').value), playerDraft: $('pdon').checked, order: $('pord').value });
     b.disabled = false;
     if (j.error) toast(j.error); else go('/r/' + j.code);
   }
@@ -351,6 +457,13 @@ document.addEventListener('click', async e => {
   else if (a === 'free') act({ type: 'free', team: t });
   else if (a === 'coin') { const j = await act({ type: 'coin' }); if (!j.error) setTimeout(() => { const f = eseq()[0]; toast('Монетка: первыми ходят ' + tname(f ? f[1] : 'A')); }, 300); }
   else if (a === 'start') act({ type: 'start' });
+  else if (a === 'pstart') act({ type: 'pstart' });
+  else if (a === 'pend') act({ type: 'pend' });
+  else if (a === 'pjoin') { if (await needNick()) act({ type: 'pready', ready: true }); }
+  else if (a === 'pready') { if (await needNick()) act({ type: 'pready', ready: b.dataset.v === '1' }); }
+  else if (a === 'pleave') act({ type: 'leave' });
+  else if (a === 'kick') act({ type: 'kick', uid: b.dataset.u });
+  else if (a === 'ppick') act({ type: 'ppick', uid: b.dataset.u, step: ppicks().length });
   else if (a === 'lock') lock(sel);
   else if (a === 'skip') lock(null);
   else if (a === 'undo') act({ type: 'undo' });
