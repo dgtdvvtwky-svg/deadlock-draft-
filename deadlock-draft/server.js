@@ -61,10 +61,11 @@ async function refreshRoster() {
     const byKey = new Map(next.map(h => [h.id, h]));
     for (const a of list) {
       if (!a || typeof a.name !== 'string') continue;
-      if (a.disabled === true || a.in_development === true || a.player_selectable === false) continue;
+      if (a.disabled === true || a.player_selectable === false) continue;
       const k = hkey(a.name);
       if (!k) continue;
       let h = byKey.get(k);
+      if (!h && a.in_development === true) continue;
       if (!h) { h = { id: k, name: clean(a.name, 40), role: 'new', img: null, heroId: null }; next.push(h); byKey.set(k, h); }
       h.heroId = num(a.id) || null;
       h.img = pickImage(a.images) || null;
@@ -92,7 +93,7 @@ async function dapi(p, ttl = 600e3) {
   return v;
 }
 
-const RANK_NAMES = ['Obscurus', 'Initiate', 'Seeker', 'Alchemist', 'Arcanist', 'Ritualist', 'Emissary', 'Archon', 'Oracle', 'Phantom', 'Ascendant', 'Eternus'];
+const RANK_NAMES = ['Obscurus', 'Initiate', 'Seeker', 'Acolyte', 'Sentinel', 'Mystic', 'Ritualist', 'Emissary', 'Oracle', 'Phantom', 'Ascendant', 'Eternus'];
 async function rankAssets() {
   try { const v = await dapi('/v1/assets/ranks', 24 * 3600e3); return Array.isArray(v) ? v : []; } catch (e) { return []; }
 }
@@ -100,9 +101,10 @@ async function parseRank(v) {
   const o = Array.isArray(v) ? v[0] : v;
   if (!o || typeof o !== 'object') return null;
   let tier = null, sub = null;
-  const badge = [o.rank, o.badge, o.ranked_badge, o.ranked_display_badge, o.rank_badge].find(x => Number.isFinite(Number(x)) && Number(x) > 0);
+  const badge = [o.badge, o.ranked_badge, o.ranked_display_badge, o.rank_badge].find(x => x != null && Number.isFinite(Number(x)) && Number(x) > 0);
   if (badge != null) { tier = Math.floor(Number(badge) / 10); sub = Number(badge) % 10; }
-  else if (o.tier != null || o.division != null) { tier = num(o.tier ?? o.division); sub = num(o.subrank ?? o.sub_rank ?? o.division_tier); }
+  else if (o.subrank != null || o.tier != null) { tier = num(o.rank ?? o.tier); sub = num(o.subrank ?? o.sub_rank); }
+  else if (Number(o.rank) > 11) { tier = Math.floor(Number(o.rank) / 10); sub = Number(o.rank) % 10; }
   if (!tier || tier < 1 || tier > 11) return null;
   sub = Math.min(Math.max(sub || 1, 1), 6);
   const assets = await rankAssets();
