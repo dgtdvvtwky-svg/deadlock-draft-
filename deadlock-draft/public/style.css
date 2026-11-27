@@ -170,6 +170,9 @@ html{background:#0f0522}
 .mframe img{display:block;width:100%;height:auto;border-radius:17px;filter:saturate(1.15) contrast(1.05)}
 .mframe::after{content:"";position:absolute;inset:5px;border-radius:17px;pointer-events:none;background:linear-gradient(160deg,rgba(255,79,200,.28),rgba(168,85,255,.18) 45%,rgba(57,224,255,.22));mix-blend-mode:soft-light}
 .mframe{position:relative}
+.hero .meme{cursor:pointer}
+.lobhead.wm{grid-template-columns:minmax(0,1fr) auto;align-items:center}.lht{display:grid;gap:6px}
+.meme.lm{width:200px;max-width:42vw;justify-self:end;animation:none}.meme.lm .mframe{transform:rotate(2deg)}
 .spk{position:absolute;color:var(--star);text-shadow:0 0 10px var(--star),0 0 22px var(--am);font-size:26px;line-height:1;animation:tw 2.4s ease-in-out infinite;pointer-events:none}
 .spk.k1{top:-14px;left:-10px}.spk.k2{bottom:6px;right:-14px;font-size:20px;animation-delay:.8s;color:#ffb3ec}.spk.k3{top:30%;right:-18px;font-size:16px;animation-delay:1.5s;color:var(--sa)}
 @keyframes mfloat{50%{transform:translateY(-6px)}}
@@ -198,6 +201,6 @@ button,.btn{background:rgba(78,34,130,.55);border-color:var(--ln)}
 @media(prefers-reduced-motion:reduce){.pillow *,.meme,.spk{animation:none!important}.pillow .zz text{opacity:1}}
 [hidden]{display:none!important}
 @media(max-width:960px){.board{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"a b" "m m"}.team.A{grid-area:a}.team.B{grid-area:b}.mid{grid-area:m}.homegrid{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:600px){.board{gap:10px}.team{padding:10px;gap:10px}.tn{font-size:18px}.bs,.ps .e0,.bs .em,.ps .em,.rw .em,.pv .em{width:34px;height:34px}.ps{grid-template-columns:34px minmax(0,1fr);min-height:44px}.ps b{font-size:15px}
+@media(max-width:600px){.lobhead.wm{grid-template-columns:minmax(0,1fr)}.meme.lm{justify-self:center;width:220px;max-width:80vw}.board{gap:10px}.team{padding:10px;gap:10px}.tn{font-size:18px}.bs,.ps .e0,.bs .em,.ps .em,.rw .em,.pv .em{width:34px;height:34px}.ps{grid-template-columns:34px minmax(0,1fr);min-height:44px}.ps b{font-size:15px}
 .rosters,.lset{grid-template-columns:minmax(0,1fr)}.grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}.tile .em{font-size:20px}.rw{grid-template-columns:34px minmax(0,1fr)}.who{margin-left:0;width:100%}.who input{flex:1;width:auto}.viewers{margin-left:0}}
 @media(prefers-reduced-motion:reduce){.bs.nx,.ps.nx{animation:none}.tile{transition:none}}
