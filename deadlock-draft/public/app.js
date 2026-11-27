@@ -38,6 +38,9 @@ const PILLOW = `<svg class="pillow" viewBox="0 0 260 210" role="img" aria-label=
  <text class="z1" x="214" y="40" font-size="20">z</text><text class="z2" x="232" y="20" font-size="26">Z</text>
 </g>
 </svg>`;
+const memeHTML = () => (typeof window.MEME_SRC === 'string' && window.MEME_SRC.startsWith('data:image/')
+  ? `<figure class="meme"><span class="mframe"><img src="${window.MEME_SRC}" alt="Мем: рыба просит высушить её и разбить об стол"></span><span class="spk k1">✦</span><span class="spk k2">✦</span><span class="spk k3">✧</span></figure>`
+  : PILLOW);
 let me = { uid: '', nick: '', avatar: '', acc: null, steam: false };
 let H = [], HM = {}, HID = {};
 let view = 'home', code = null, room = null, es = null, offset = 0, sel = null, roleF = 'all', q = '';
@@ -110,7 +113,7 @@ const chips = (seq, done, cur) => seq.map((x, i) => {
 function seqInfo(s) { const n = k => s.filter(x => x === k).length; return `Баны: ${n('bA')} + ${n('bB')} · пики: ${n('pA')} + ${n('pB')} · всего ходов: ${s.length}`; }
 function homeView() {
   $('app').innerHTML = `<section class="hero"><div class="htxt"><h1>Драфт для Deadlock</h1>
-   <p class="lead">Баны и пики по очереди для двух капитанов, таймер хода и лобби с составами 6 на 6. Входите через Steam, чтобы рядом с ником показывались ранг и статистика по героям, или играйте гостем под ником.</p></div>${PILLOW}</section>
+   <p class="lead">Баны и пики по очереди для двух капитанов, таймер хода и лобби с составами 6 на 6. Входите через Steam, чтобы рядом с ником показывались ранг и статистика по героям, или играйте гостем под ником.</p></div>${memeHTML()}</section>
   <div class="homegrid">
    <section class="card"><h2>Новая комната</h2>
     <div class="two"><label>Команда 1 (Amber)<input id="nA" maxlength="40" value="Amber Hand"></label><label>Команда 2 (Sapphire)<input id="nB" maxlength="40" value="Sapphire Flame"></label></div>
