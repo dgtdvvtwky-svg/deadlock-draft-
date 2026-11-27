@@ -250,6 +250,19 @@ const TIMERS = [0, 20, 30, 45, 60, 90];
 const rooms = new Map(); // code -> { d, clients:Set, tm }
 const card = u => ({ uid: u.uid, nick: clean(u.nick, 24) || 'Игрок', avatar: httpsUrl(u.avatar), acc: u.acc || null });
 const eseq = d => (d.flip ? d.seq.map(x => x[0] + (x[1] === 'A' ? 'B' : 'A')) : d.seq);
+/* выбор игроков: первым берёт игрока тот, кто вторым начинает драфт героев */
+const pdOn = d => !!(d.pd && d.pd.on);
+function pseq(d) {
+  const f = eseq(d)[0], F = f && f[1] === 'A' ? 'B' : 'A', O = F === 'A' ? 'B' : 'A', out = [];
+  for (let i = 0; i < 2 * (d.pd.size - 1); i++) out.push(d.pd.order === 'alt' ? (i % 2 ? O : F) : (i % 4 === 0 || i % 4 === 3 ? F : O));
+  return out;
+}
+const teamUids = (d, t) => [d.cap[t] && d.cap[t].uid, ...(d.pd ? d.pd.picks : []).filter(p => p.t === t).map(p => p.uid)].filter(Boolean);
+const teamOf = (d, uid) => ['A', 'B'].find(t => teamUids(d, t).includes(uid)) || null;
+const availPlayers = d => Object.values(d.pool || {}).filter(p => p.ready && !teamOf(d, p.uid));
+function pdMaybeEnd(d) {
+  if (d.status === 'pdraft' && (d.pd.picks.length >= pseq(d).length || !availPlayers(d).length)) { d.status = 'wait'; d.turnAt = 0; }
+}
 
 function newCode() {
   for (let k = 0; k < 50; k++) {
@@ -263,9 +276,11 @@ function makeRoom(o) {
   const code = newCode();
   const d = {
     code, createdAt: Date.now(), updatedAt: Date.now(), host: o.host.uid, hostNick: clean(o.host.nick, 24),
-    seq: o.seq, timer: o.timer, names: o.names, cap: o.cap || { A: null, B: null }, status: 'wait', flip: !!o.flip,
+    seq: o.seq, timer: o.timer, names: o.names, cap: o.cap || { A: null, B: null }, status: o.pd ? 'gather' : 'wait', flip: !!o.flip,
     acts: [], turnAt: 0, lobby: { code: '', region: 'eu', note: '', slots: {}, ready: { A: false, B: false } }, next: '',
+    pool: o.pool || {}, pd: { on: !!o.pd, order: o.order === 'alt' ? 'alt' : 'snake', size: 6, picks: [] },
   };
+  if (d.pd.on) for (const t of ['A', 'B']) if (d.cap[t]) d.pool[d.cap[t].uid] = { ...d.cap[t], ready: true, at: Date.now() };
   rooms.set(code, { d, clients: new Set(), tm: null });
   prune();
   return rooms.get(code);
@@ -280,7 +295,11 @@ function viewers(R) {
   for (const c of R.clients) if (!m.has(c.u.uid)) m.set(c.u.uid, { nick: clean(c.u.nick, 24) || 'Гость', avatar: httpsUrl(c.u.avatar), acc: c.u.acc || null });
   return [...m.values()].slice(0, 40);
 }
-const pub = R => ({ ...R.d, viewers: viewers(R), serverNow: Date.now() });
+function pub(R) {
+  const online = new Set([...R.clients].map(c => c.u.uid));
+  const pool = Object.values(R.d.pool || {}).map(p => ({ ...p, online: online.has(p.uid) }));
+  return { ...R.d, pool, viewers: viewers(R), serverNow: Date.now() };
+}
 function broadcast(R, event = 'state') {
   R.d.updatedAt = Date.now();
   const msg = `event: ${event}\ndata: ${JSON.stringify(event === 'state' ? pub(R) : { code: R.d.code })}\n\n`;
@@ -291,9 +310,18 @@ function broadcast(R, event = 'state') {
 function schedule(R) {
   clearTimeout(R.tm);
   const d = R.d;
-  if (d.status !== 'draft' || !d.timer || !rooms.has(d.code)) return;
-  const step = d.acts.length;
-  R.tm = setTimeout(() => autoAct(R, step), Math.max(0, d.turnAt + d.timer * 1000 - Date.now()) + 250);
+  if (!d.timer || !rooms.has(d.code)) return;
+  const wait = Math.max(0, d.turnAt + d.timer * 1000 - Date.now()) + 250;
+  if (d.status === 'draft') { const step = d.acts.length; R.tm = setTimeout(() => autoAct(R, step), wait); }
+  else if (d.status === 'pdraft') { const step = d.pd.picks.length; R.tm = setTimeout(() => autoPick(R, step), wait); }
+}
+function autoPick(R, step) {
+  const d = R.d;
+  if (d.status !== 'pdraft' || d.pd.picks.length !== step) return;
+  const av = availPlayers(d);
+  if (av.length) { d.pd.picks.push({ t: pseq(d)[step], uid: av[crypto.randomInt(av.length)].uid }); d.turnAt = Date.now(); d.lastAutoP = step; }
+  pdMaybeEnd(d);
+  broadcast(R);
 }
 function applyLock(d, c, h) {
   d.acts.push({ s: c[0], t: c[1], h: h || null });
@@ -329,8 +357,10 @@ function act(R, u, b) {
       if (!u.nick) return 'Сначала укажите ник';
       if (d.cap[t] && d.cap[t].uid !== u.uid) return 'Место уже занято';
       const o = t === 'A' ? 'B' : 'A';
-      if (isCap(o)) d.cap[o] = null;
+      if (pdOn(d) && d.pd.picks.some(p => p.uid === u.uid)) return 'Вас уже выбрали в команду';
+      if (isCap(o)) { if (d.status === 'pdraft') return 'Во время выбора игроков нельзя сменить команду'; d.cap[o] = null; }
       d.cap[t] = card(u);
+      if (pdOn(d)) d.pool[u.uid] = { ...card(u), ready: true, at: (d.pool[u.uid] && d.pool[u.uid].at) || Date.now() };
       return null;
     }
     case 'free':
@@ -341,7 +371,7 @@ function act(R, u, b) {
       if (d.status !== 'wait') return 'Драфт уже идёт';
       d.status = 'draft'; d.turnAt = Date.now(); return null;
     case 'coin':
-      if (!isHost || d.status !== 'wait') return 'Монетку бросает хост до старта';
+      if (!isHost || d.status !== (pdOn(d) ? 'gather' : 'wait')) return 'Монетку бросает хост до старта';
       d.flip = crypto.randomInt(2) === 1; return null;
     case 'lock': {
       if (d.status !== 'draft') return 'Драфт сейчас не идёт';
@@ -357,6 +387,10 @@ function act(R, u, b) {
     }
     case 'undo':
       if (!isHost) return 'Отменять ходы может хост';
+      if (pdOn(d) && (d.status === 'pdraft' || (d.status === 'wait' && !d.acts.length))) {
+        if (!d.pd.picks.length) return 'Нечего отменять';
+        d.pd.picks.pop(); d.status = 'pdraft'; d.turnAt = Date.now(); return null;
+      }
       if (!d.acts.length) return 'Нечего отменять';
       d.acts.pop(); d.status = 'draft'; d.turnAt = Date.now(); return null;
     case 'slot': {
@@ -367,6 +401,7 @@ function act(R, u, b) {
       const canManage = isHost || isCap(mm[1]);
       if (b.mode === 'me') {
         if (!u.nick) return 'Сначала укажите ник';
+        if (pdOn(d) && teamOf(d, u.uid) !== mm[1]) return 'Это место для игроков команды ' + (d.names[mm[1]] || mm[1]);
         if (st && st.uid && st.uid !== u.uid) return 'Место уже занято';
         for (const [kk, v] of Object.entries(d.lobby.slots)) if (v && v.uid === u.uid) delete d.lobby.slots[kk];
         d.lobby.slots[k] = card(u); return null;
@@ -394,6 +429,58 @@ function act(R, u, b) {
     case 'ready':
       if (!isHost && !isCap(t)) return 'Готовность отмечает капитан команды';
       d.lobby.ready[t] = !d.lobby.ready[t]; return null;
+    case 'join': {
+      if (!pdOn(d)) return 'В этой комнате нет выбора игроков';
+      if (d.status === 'done') return 'Драфт уже завершён';
+      if (!u.nick) return 'Сначала укажите ник';
+      const ex = d.pool[u.uid];
+      if (!ex && Object.keys(d.pool).length >= 40) return 'В лобби уже 40 игроков';
+      d.pool[u.uid] = { ...card(u), ready: b.ready === true || !!(ex && ex.ready), at: (ex && ex.at) || Date.now() };
+      return null;
+    }
+    case 'pready': {
+      if (!pdOn(d)) return 'В этой комнате нет выбора игроков';
+      if (!u.nick) return 'Сначала укажите ник';
+      const ex = d.pool[u.uid];
+      if (!ex && Object.keys(d.pool).length >= 40) return 'В лобби уже 40 игроков';
+      if (ex && teamOf(d, u.uid) && b.ready === false && d.status !== 'gather') return 'Вы уже в команде';
+      d.pool[u.uid] = { ...card(u), ready: typeof b.ready === 'boolean' ? b.ready : !(ex && ex.ready), at: (ex && ex.at) || Date.now() };
+      if (d.status === 'pdraft' && !d.pool[u.uid].ready) pdMaybeEnd(d);
+      return null;
+    }
+    case 'leave':
+      if (!d.pool[u.uid]) return null;
+      if (teamOf(d, u.uid)) return isCap('A') || isCap('B') ? 'Сначала освободите место капитана' : 'Вас уже выбрали в команду';
+      delete d.pool[u.uid]; return null;
+    case 'kick': {
+      if (!isHost) return 'Убирать игроков может хост';
+      const id = String(b.uid || '');
+      if (!d.pool[id]) return null;
+      if (teamOf(d, id)) return 'Игрок уже в команде';
+      delete d.pool[id]; return null;
+    }
+    case 'pstart':
+      if (!isHost) return 'Выбор игроков запускает хост';
+      if (d.status !== 'gather') return 'Выбор игроков уже идёт';
+      if (!d.cap.A || !d.cap.B) return 'Нужны оба капитана';
+      if (!availPlayers(d).length) return 'Нет готовых игроков';
+      d.status = 'pdraft'; d.turnAt = Date.now(); pdMaybeEnd(d); return null;
+    case 'ppick': {
+      if (d.status !== 'pdraft') return 'Сейчас не выбор игроков';
+      if (Number(b.step) !== d.pd.picks.length) return 'Этот выбор уже сделан';
+      const t2 = pseq(d)[d.pd.picks.length];
+      const cap = d.cap[t2];
+      if (cap ? cap.uid !== u.uid : !isHost) return 'Сейчас выбирает другой капитан';
+      const p = d.pool[String(b.uid || '')];
+      if (!p) return 'Игрок ушёл из лобби';
+      if (!p.ready) return 'Игрок ещё не готов';
+      if (teamOf(d, p.uid)) return 'Игрок уже в команде';
+      d.pd.picks.push({ t: t2, uid: p.uid }); d.turnAt = Date.now(); pdMaybeEnd(d); return null;
+    }
+    case 'pend':
+      if (!isHost) return 'Закончить выбор может хост';
+      if (d.status !== 'pdraft' && d.status !== 'gather') return 'Сейчас не выбор игроков';
+      d.status = 'wait'; d.turnAt = 0; return null;
     case 'names':
       if (!isHost || d.status !== 'wait') return 'Названия меняет хост до старта';
       d.names = { A: clean(b.A, 40) || d.names.A, B: clean(b.B, 40) || d.names.B }; return null;
@@ -415,7 +502,7 @@ function saveSoon() {
 function loadRooms() {
   try {
     const all = JSON.parse(fs.readFileSync(ROOMS_FILE, 'utf8'));
-    for (const d of all) if (d && d.code && Date.now() - d.updatedAt < 24 * 3600e3) { const R = { d, clients: new Set(), tm: null }; rooms.set(d.code, R); schedule(R); }
+    for (const d of all) if (d && d.code && Date.now() - d.updatedAt < 24 * 3600e3) { d.pool = d.pool || {}; d.pd = d.pd || { on: false, order: 'snake', size: 6, picks: [] }; const R = { d, clients: new Set(), tm: null }; rooms.set(d.code, R); schedule(R); }
     console.log('[rooms] загружено комнат:', rooms.size);
   } catch (e) { /* файла ещё нет */ }
 }
@@ -522,7 +609,7 @@ async function handle(req, res) {
     if (seq.filter(x => x === 'pA').length > 10 || seq.filter(x => x === 'pB').length > 10) return send(res, 400, { error: 'Не больше 10 пиков на команду' });
     const timer = TIMERS.includes(Number(b.timer)) ? Number(b.timer) : 30;
     const names = { A: clean(b.names && b.names.A, 40) || 'Amber Hand', B: clean(b.names && b.names.B, 40) || 'Sapphire Flame' };
-    const R = makeRoom({ host: u, seq, timer, names });
+    const R = makeRoom({ host: u, seq, timer, names, pd: b.playerDraft !== false, order: b.order });
     saveSoon();
     return send(res, 200, { code: R.d.code });
   }
@@ -562,7 +649,9 @@ async function handle(req, res) {
       const d = R.d;
       if (d.host !== u.uid) return send(res, 403, { error: 'Реванш создаёт хост' });
       if (d.next && rooms.has(d.next)) return send(res, 200, { code: d.next });
-      const N = makeRoom({ host: u, seq: d.seq, timer: d.timer, names: d.names, cap: { A: d.cap.A, B: d.cap.B }, flip: !d.flip });
+      const pool = {};
+      for (const [k, p] of Object.entries(d.pool || {})) pool[k] = { ...p, ready: false };
+      const N = makeRoom({ host: u, seq: d.seq, timer: d.timer, names: d.names, cap: { A: d.cap.A, B: d.cap.B }, flip: !d.flip, pd: pdOn(d), order: d.pd && d.pd.order, pool });
       d.next = N.d.code;
       broadcast(R);
       return send(res, 200, { code: N.d.code });
