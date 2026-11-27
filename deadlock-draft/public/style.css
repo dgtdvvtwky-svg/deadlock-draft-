@@ -181,7 +181,8 @@ button,.btn{background:rgba(78,34,130,.55);border-color:var(--ln)}
 .pill{background:rgba(168,85,255,.25);border-color:rgba(214,140,255,.5);box-shadow:0 0 12px rgba(168,85,255,.4)}
 .foot a,.how a{color:var(--sa)}
 .how b{color:var(--star)}
-@media(max-width:700px){.hero::before{opacity:.35;width:44vw;right:-6vw}}
+@media(max-width:1100px){.hero::before{opacity:.3;right:-2%}}
+@media(max-width:700px){.hero::before{opacity:.3;width:44vw;right:-6vw}}
 @media(prefers-reduced-motion:reduce){.hero::before{animation:none}}
 [hidden]{display:none!important}
 @media(max-width:960px){.board{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"a b" "m m"}.team.A{grid-area:a}.team.B{grid-area:b}.mid{grid-area:m}.homegrid{grid-template-columns:minmax(0,1fr)}}
