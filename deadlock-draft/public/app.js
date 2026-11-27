@@ -15,6 +15,29 @@ const REG = { eu: 'Европа', ru: 'Россия / СНГ', na: 'Северн
 const ST = { gather: 'Сбор игроков', pdraft: 'Выбор игроков', wait: 'Ожидание драфта героев', draft: 'Драфт героев', done: 'Лобби' };
 const STEAM_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-9.96 9.04l5.36 2.21a2.83 2.83 0 0 1 1.6-.49h.15l2.38-3.45v-.05a3.77 3.77 0 1 1 3.77 3.77h-.09l-3.4 2.42v.13a2.83 2.83 0 0 1-5.6.57L2.4 14.6A10 10 0 1 0 12 2Zm-4.7 15.2-1.23-.51a2.13 2.13 0 1 0 1.17-2.93l1.27.52a1.57 1.57 0 1 1-1.2 2.92Zm9.6-7.27a2.51 2.51 0 1 0-2.51 2.51 2.51 2.51 0 0 0 2.5-2.51Zm-4.4 0a1.89 1.89 0 1 1 1.89 1.89 1.89 1.89 0 0 1-1.9-1.89Z"/></svg>';
 
+const PILLOW = `<svg class="pillow" viewBox="0 0 260 210" role="img" aria-label="Сонная подушка">
+<defs>
+ <linearGradient id="pw" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff7ad9"/><stop offset=".5" stop-color="#b45cff"/><stop offset="1" stop-color="#5a3bff"/></linearGradient>
+ <radialGradient id="pl" cx=".32" cy=".28" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#ffd6f6" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+ <linearGradient id="pe" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#39e0ff" stop-opacity=".0"/><stop offset="1" stop-color="#39e0ff" stop-opacity=".55"/></linearGradient>
+</defs>
+<ellipse class="pshadow" cx="130" cy="196" rx="86" ry="9" fill="#a855ff" opacity=".35"/>
+<g class="pbody">
+ <path d="M46 52 L28 34 L58 44 C92 30 168 30 202 44 L232 34 L214 52 C228 82 228 128 214 158 L232 176 L202 166 C168 180 92 180 58 166 L28 176 L46 158 C32 128 32 82 46 52 Z" fill="url(#pw)" stroke="#ffc2f0" stroke-width="2.5" stroke-linejoin="round"/>
+ <path d="M46 52 L28 34 L58 44 C92 30 168 30 202 44 L232 34 L214 52 C228 82 228 128 214 158 L232 176 L202 166 C168 180 92 180 58 166 L28 176 L46 158 C32 128 32 82 46 52 Z" fill="url(#pe)"/>
+ <path d="M46 52 L28 34 L58 44 C92 30 168 30 202 44 L232 34 L214 52 C228 82 228 128 214 158 L232 176 L202 166 C168 180 92 180 58 166 L28 176 L46 158 C32 128 32 82 46 52 Z" fill="url(#pl)"/>
+ <path d="M60 60 C95 49 165 49 200 60 C210 85 210 125 200 150 C165 161 95 161 60 150 C50 125 50 85 60 60 Z" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2" stroke-dasharray="6 7" stroke-linecap="round"/>
+ <path d="M98 104 q10 9 20 0" fill="none" stroke="#2a0b4f" stroke-width="4" stroke-linecap="round"/>
+ <path d="M142 104 q10 9 20 0" fill="none" stroke="#2a0b4f" stroke-width="4" stroke-linecap="round"/>
+ <ellipse cx="94" cy="122" rx="9" ry="5" fill="#ff4fc8" opacity=".55"/><ellipse cx="166" cy="122" rx="9" ry="5" fill="#ff4fc8" opacity=".55"/>
+ <path d="M124 124 q6 5 12 0" fill="none" stroke="#2a0b4f" stroke-width="3" stroke-linecap="round"/>
+ <path d="M186 72 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3z" fill="#ffe66b"/>
+ <circle cx="76" cy="78" r="3" fill="#fff" opacity=".8"/>
+</g>
+<g class="zz" fill="#ffe66b" font-family="Unbounded,sans-serif" font-weight="800">
+ <text class="z1" x="214" y="40" font-size="20">z</text><text class="z2" x="232" y="20" font-size="26">Z</text>
+</g>
+</svg>`;
 let me = { uid: '', nick: '', avatar: '', acc: null, steam: false };
 let H = [], HM = {}, HID = {};
 let view = 'home', code = null, room = null, es = null, offset = 0, sel = null, roleF = 'all', q = '';
@@ -86,8 +109,8 @@ const chips = (seq, done, cur) => seq.map((x, i) => {
 }).join('');
 function seqInfo(s) { const n = k => s.filter(x => x === k).length; return `Баны: ${n('bA')} + ${n('bB')} · пики: ${n('pA')} + ${n('pB')} · всего ходов: ${s.length}`; }
 function homeView() {
-  $('app').innerHTML = `<section class="hero"><h1>Драфт для Deadlock</h1>
-   <p class="lead">Баны и пики по очереди для двух капитанов, таймер хода и лобби с составами 6 на 6. Входите через Steam, чтобы рядом с ником показывались ранг и статистика по героям, или играйте гостем под ником.</p></section>
+  $('app').innerHTML = `<section class="hero"><div class="htxt"><h1>Драфт для Deadlock</h1>
+   <p class="lead">Баны и пики по очереди для двух капитанов, таймер хода и лобби с составами 6 на 6. Входите через Steam, чтобы рядом с ником показывались ранг и статистика по героям, или играйте гостем под ником.</p></div>${PILLOW}</section>
   <div class="homegrid">
    <section class="card"><h2>Новая комната</h2>
     <div class="two"><label>Команда 1 (Amber)<input id="nA" maxlength="40" value="Amber Hand"></label><label>Команда 2 (Sapphire)<input id="nB" maxlength="40" value="Sapphire Flame"></label></div>
